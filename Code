@@ -1,0 +1,349 @@
+# Food-obsession-tracker
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>food tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f7f6f3;
+      color: #1a1a1a;
+      padding: 40px 24px;
+    }
+
+    .page { max-width: 740px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 36px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 20px;
+    }
+
+    header h1 {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: #1a1a1a;
+    }
+
+    header p {
+      font-size: 0.82rem;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 16px;
+    }
+
+    input, select {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.92rem;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fafafa;
+      color: #1a1a1a;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus { border-color: #aaa; background: #fff; }
+
+    button {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #1a1a1a;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button:hover { background: #333; }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid #ddd;
+      color: #999;
+      font-weight: 400;
+    }
+
+    .btn-ghost:hover { background: #f5f5f5; color: #666; }
+
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    #status { font-size: 0.8rem; color: #aaa; margin-top: 8px; font-family: 'DM Mono', monospace; }
+
+    #loginBox {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #loginBox label { font-size: 0.85rem; color: #666; }
+    #loginError { font-size: 0.8rem; color: #e63946; margin-top: 0; }
+
+    #adminBadge {
+      display: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      width: fit-content;
+    }
+
+    #adminSection { display: none; }
+
+    .chart-wrap { height: 260px; position: relative; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th {
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #bbb;
+      padding: 0 12px 10px 12px;
+    }
+    td { padding: 10px 12px; border-top: 1px solid #f0f0f0; }
+    tr:first-child td { border-top: none; }
+
+    .dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>food tracker</h1>
+    <p>what i'm eating lately</p>
+  </header>
+
+  <div id="loginBox">
+    <label>admin code</label>
+    <input id="codeInput" type="password" placeholder="····" style="width:90px" />
+    <button onclick="tryLogin()">enter</button>
+    <span id="loginError"></span>
+  </div>
+
+  <div id="adminBadge">admin mode</div>
+
+  <div id="adminSection">
+    <div class="card">
+      <h2>add a new food</h2>
+      <div class="row">
+        <input id="newFood" placeholder="pasta, sushi..." style="flex:1; min-width:140px" />
+        <button onclick="addFood()">add</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>log what i ate</h2>
+      <div class="row">
+        <select id="foodSelect" style="flex:1; min-width:140px"><option>-- pick a food --</option></select>
+        <input id="eatCount" type="number" min="1" value="1" style="width:60px" />
+        <span style="font-size:0.85rem; color:#999">times</span>
+        <button onclick="logEat()">log</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>last 2 weeks</h2>
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>all foods</h2>
+    <table id="foodTable">
+      <tr>
+        <th></th>
+        <th>food</th>
+        <th>total</th>
+        <th id="deleteCol" style="display:none"></th>
+      </tr>
+    </table>
+  </div>
+
+</div>
+<script>
+  const SUPABASE_URL = 'https://yriqnryaspopcpkmnkgu.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXFucnlhc3BvcGNwa21ua2d1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjM4MTYsImV4cCI6MjA5NTk5OTgxNn0.PtHW4Wj8FJP2sBQnF-kTEXBEC2cQYGDKoZTo_EGcDiU';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const COLORS = ['#e63946','#2a9d8f','#e9c46a','#457b9d','#f4a261','#8ecae6','#6d6875','#52b788','#f77f00','#4361ee','#7209b7','#3a86ff'];
+
+  let isAdmin = false;
+  let foods = JSON.parse(localStorage.getItem('ft_foods') || '[]');
+  let log = [];
+  let chart;
+
+  function tryLogin() {
+    if (document.getElementById('codeInput').value === '2009') {
+      isAdmin = true;
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('adminSection').style.display = 'block';
+      document.getElementById('adminBadge').style.display = 'block';
+      document.getElementById('deleteCol').style.display = '';
+      render();
+    } else {
+      document.getElementById('loginError').textContent = 'wrong code';
+    }
+  }
+
+  document.getElementById('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+  function status(msg) { document.getElementById('status').textContent = msg; }
+
+  async function loadLog() {
+    const { data, error } = await db.from('log').select('*');
+    if (error) { console.error(error); return; }
+    log = data || [];
+    render();
+  }
+
+  function addFood() {
+    const name = document.getElementById('newFood').value.trim();
+    if (!name) return;
+    if (foods.find(f => f.name.toLowerCase() === name.toLowerCase())) { alert('already exists'); return; }
+    foods.push({ name, color: COLORS[foods.length % COLORS.length] });
+    localStorage.setItem('ft_foods', JSON.stringify(foods));
+    document.getElementById('newFood').value = '';
+    render();
+  }
+
+  async function logEat() {
+    const name = document.getElementById('foodSelect').value;
+    const count = parseInt(document.getElementById('eatCount').value) || 1;
+    if (!name || name === '-- pick a food --') return;
+    const today = new Date().toISOString().slice(0, 10);
+    status('saving...');
+    const { error } = await db.from('log').insert({ Food: name, Date: today, Count: count });
+    if (error) { status('error: ' + error.message); return; }
+    status('saved');
+    setTimeout(() => status(''), 2000);
+    await loadLog();
+  }
+
+  async function deleteFood(name) {
+    if (!isAdmin) return;
+    foods = foods.filter(f => f.name !== name);
+    localStorage.setItem('ft_foods', JSON.stringify(foods));
+    await db.from('log').delete().eq('Food', name);
+    await loadLog();
+  }
+
+  function getLast14Days() {
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (13 - i));
+      return d.toISOString().slice(0, 10);
+    });
+  }
+
+  function render() {
+    if (isAdmin) {
+      const sel = document.getElementById('foodSelect');
+      const prev = sel.value;
+      sel.innerHTML = '<option>-- pick a food --</option>';
+      foods.forEach(f => {
+        const o = document.createElement('option');
+        o.value = o.textContent = f.name;
+        sel.appendChild(o);
+      });
+      if (prev) sel.value = prev;
+    }
+
+    const table = document.getElementById('foodTable');
+    table.innerHTML = `<tr><th></th><th>food</th><th>total</th><th style="display:${isAdmin ? '' : 'none'}"></th></tr>`;
+    foods.forEach(f => {
+      const total = log.filter(l => l.Food === f.name).reduce((s, l) => s + (l.Count || 1), 0);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="dot" style="background:${f.color}"></span></td>
+        <td>${f.name}</td>
+        <td style="font-family:'DM Mono',monospace">${total}x</td>
+        <td style="display:${isAdmin ? '' : 'none'}"><button class="btn-ghost" onclick="deleteFood('${f.name}')">remove</button></td>
+      `;
+      table.appendChild(tr);
+    });
+
+    const days = getLast14Days();
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: {
+        labels: days.map(d => d.slice(5)),
+        datasets: foods.map(f => ({
+          label: f.name,
+          data: days.map(d => log.filter(l => l.Food === f.name && l.Date === d).reduce((s, l) => s + (l.Count || 1), 0)),
+          borderColor: f.color,
+          backgroundColor: f.color + '22',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 3,
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { family: 'DM Sans', size: 12 } } }
+        },
+        scales: {
+          x: { grid: { color: '#f0f0f0' }, ticks: { font: { family: 'DM Mono', size: 11 }, color: '#bbb' } },
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'DM Mono', size: 11 }, color: '#bbb' }, grid: { color: '#f0f0f0' } }
+        }
+      }
+    });
+  }
+
+  loadLog();
+</script>
+</body>
+</html>
